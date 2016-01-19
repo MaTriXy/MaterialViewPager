@@ -1,7 +1,6 @@
 MaterialViewPager
 =======
 
-[![Build Status](https://travis-ci.org/florent37/MaterialViewPager.svg)](https://travis-ci.org/florent37/MaterialViewPager)
 [![Android Arsenal](https://img.shields.io/badge/Android%20Arsenal-MaterialViewPager-brightgreen.svg?style=flat)](http://android-arsenal.com/details/1/1731)
 [![Android Weekly](https://img.shields.io/badge/android--weekly-151-blue.svg)](http://androidweekly.net/issues/issue-151)
 [![Join the chat at https://gitter.im/florent37/MaterialViewPager](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/florent37/MaterialViewPager?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
@@ -12,17 +11,21 @@ Material Design ViewPager easy to use library
 
 #Sample
 
-You can find a sample APK : [Link](https://github.com/florent37/MaterialViewPager/releases/download/1.0.0/sample-debug.apk)
+<a href="https://play.google.com/store/apps/details?id=com.github.florent37.materialviewpager.sample">
+  <img alt="Android app on Google Play" src="https://developer.android.com/images/brand/en_app_rgb_wo_45.png" />
+</a>
+
+You can find a sample APK : [Link](https://github.com/florent37/MaterialViewPager/releases/download/1.1.0/sample-release.apk)
 
 And have a look on a sample Youtube Video : [Youtube Link](http://www.youtube.com/watch?v=r95Tt6AS18c)
 
-[![Video](http://share.gifyoutube.com/KroLAw.gif)](http://www.youtube.com/watch?v=r95Tt6AS18c)
+[![Video](http://i.giphy.com/xTiTnmEsdqa7IZaMXS.gif)](http://www.youtube.com/watch?v=r95Tt6AS18c)
 
 #Download
 
 In your module [![Download](https://api.bintray.com/packages/florent37/maven/MaterialViewPager/images/download.svg)](https://bintray.com/florent37/maven/MaterialViewPager/_latestVersion)
 ```groovy
-compile ('com.github.florent37:materialviewpager:1.0.1@aar'){
+compile ('com.github.florent37:materialviewpager:1.1.3@aar'){
     transitive = true
 }
 ```
@@ -43,6 +46,13 @@ Add MaterialViewPager to your activity's layout
     app:viewpager_hideLogoWithFade="false"
     app:viewpager_hideToolbarAndTitle="true"
     app:viewpager_enableToolbarElevation="true"
+    app:viewpager_parallaxHeaderFactor="1.5"
+    app:viewpager_headerAdditionalHeight="20dp"
+    app:viewpager_displayToolbarWhenSwipe="true"
+    app:viewpager_transparentToolbar="true"
+    app:viewpager_animatedHeaderImage="true"
+    app:viewpager_disableToolbar="false"
+
     />
 ```
 
@@ -76,6 +86,7 @@ To get a beautiful screen and enable preview, you theme may follow
 
    <item name="android:windowContentOverlay">@null</item>
    <item name="windowActionBar">false</item>
+   <item name="windowNoTitle">true</item>
 
    <!-- Toolbar Theme / Apply white arrow -->
    <item name="colorControlNormal">@android:color/white</item>
@@ -214,7 +225,7 @@ Your logo's layout must
 ```xml
 <com.github.florent37.materialviewpager.MaterialViewPager`
         ...
-        app:hideToolbarAndTitle="true"
+        app:viewpager_hideToolbarAndTitle="true"
         ...
         />
 ```
@@ -226,7 +237,55 @@ Your logo's layout must
 ```xml
 <com.github.florent37.materialviewpager.MaterialViewPager`
         ...
-        app:hideToolbarAndTitle="false"
+        app:viewpager_hideToolbarAndTitle="false"
+        ...
+        />
+```
+
+###Transparent Toolbar
+
+[![Video](http://share.gifyoutube.com/ywbP8k.gif)](https://youtu.be/jUVO2cozQHQ)
+
+```xml
+<com.github.florent37.materialviewpager.MaterialViewPager`
+        ...
+        app:viewpager_transparentToolbar="true"
+        ...
+        />
+```
+
+##Header Layout
+
+You can replace the header
+
+```xml
+<com.github.florent37.materialviewpager.MaterialViewPager`
+        ...
+        app:viewpager_header="@layout/myHeader"
+        ...
+        />
+```
+
+###Moving Header
+
+Or use the default header, with a KenBurns animation
+
+```xml
+<com.github.florent37.materialviewpager.MaterialViewPager`
+        ...
+        app:viewpager_animatedHeaderImage="true"
+        ...
+        />
+```
+
+###Static Header
+
+Or simply use an ImageView as header
+
+```xml
+<com.github.florent37.materialviewpager.MaterialViewPager`
+        ...
+        app:viewpager_animatedHeaderImage="false"
         ...
         />
 ```
@@ -278,7 +337,7 @@ Create your own layout using a PagerSlidingTabStrip
     app:pstsIndicatorHeight="2dp"
     app:pstsShouldExpand="true"
     app:pstsTabPaddingLeftRight="10dp"
-    app:pstsTextAllCaps="true"
+    app:pstsTabTextAllCaps="true"
     tools:background="#A333"
      />
 ```
@@ -297,69 +356,45 @@ Create your own layout using a PagerSlidingTabStrip
 
 [![Video](http://share.gifyoutube.com/yABkgW.gif)](http://youtu.be/90gKwEL1j2I )
 
-Simply listen to the ViewPager Page Change and modify the header's **color and image**
+Simply add a listen to the ViewPager
 
 ```java
-//it's a sample ViewPagerAdapter
-mViewPager.setAdapter(new FragmentStatePagerAdapter(getSupportFragmentManager()) {
-
-            int oldPosition = -1;
-
+mViewPager.setMaterialViewPagerListener(new MaterialViewPager.Listener() {
             @Override
-            public Fragment getItem(int position) {
-                return RecyclerViewFragment.newInstance();
-            }
-
-            @Override
-            public int getCount() {
-                return 4;
-            }
-
-            @Override
-            public CharSequence getPageTitle(int position) {
-                return "Tab "+position;
-            }
-
-            //called when the current page has changed
-            @Override
-            public void setPrimaryItem(ViewGroup container, int position, Object object) {
-                super.setPrimaryItem(container, position, object);
-
-                //only if position changed
-                if(position == oldPosition)
-                    return;
-                oldPosition = position;
-
-                int color = 0;
-                String imageUrl = "";
-                switch (position){
+            public HeaderDesign getHeaderDesign(int page) {
+                switch (page) {
                     case 0:
-                        imageUrl = "http://cdn1.tnwcdn.com/wp-content/blogs.dir/1/files/2014/06/wallpaper_51.jpg";
-                        color = getResources().getColor(R.color.blue);
-                        break;
+                        return HeaderDesign.fromColorResAndUrl(
+                                R.color.blue,
+                                "http://cdn1.tnwcdn.com/wp-content/blogs.dir/1/files/2014/06/wallpaper_51.jpg");
                     case 1:
-                        imageUrl = "https://fs01.androidpit.info/a/63/0e/android-l-wallpapers-630ea6-h900.jpg";
-                        color = getResources().getColor(R.color.green);
-                        break;
+                        return HeaderDesign.fromColorResAndUrl(
+                                R.color.green,
+                                "https://fs01.androidpit.info/a/63/0e/android-l-wallpapers-630ea6-h900.jpg");
                     case 2:
-                        imageUrl = "http://www.droid-life.com/wp-content/uploads/2014/10/lollipop-wallpapers10.jpg";
-                        color = getResources().getColor(R.color.cyan);
-                        break;
+                        return HeaderDesign.fromColorResAndUrl(
+                                R.color.cyan,
+                                "http://www.droid-life.com/wp-content/uploads/2014/10/lollipop-wallpapers10.jpg");
                     case 3:
-                        imageUrl = "http://www.tothemobile.com/wp-content/uploads/2014/07/original.jpg";
-                        color = getResources().getColor(R.color.red);
-                        break;
+                        return HeaderDesign.fromColorResAndUrl(
+                                R.color.red,
+                                "http://www.tothemobile.com/wp-content/uploads/2014/07/original.jpg");
                 }
 
-                final int fadeDuration = 400;
+                //execute others actions if needed (ex : modify your header logo)
 
-                //change header's color and image
-                mViewPager.setImageUrl(imageUrl,fadeDuration);
-                mViewPager.setColor(color,fadeDuration);
-
+                return null;
             }
-
         });
+```
+
+Available
+
+```java
+HeaderDesign.fromColorAndUrl(Color.BLUE,"http:...);
+HeaderDesign.fromColorResAndUrl(R.color.blue,"http:...);
+HeaderDesign.fromColorAndDrawable(Color.BLUE,myDrawable);
+HeaderDesign.fromColorResAndDrawable(R.color.blue,myDrawable);
 ```
 
 #Toolbar
@@ -464,48 +499,80 @@ And must include @layout/material_view_pager_placeholder as first child
 </com.github.ksoichiro.android.observablescrollview.ObservableScrollView>
 ```
 
-##[Killed for less...] WebView
+#CHANGELOG
 
-The WebView must be an [ObservableWebView][android-observablescrollview]
+##1.1.3
+- header is now clickable
+- fixed some scrolling issues
+
+##1.1.2
+- quick scroll fix
+- can set a custom viewpager with app:viewpager_viewpager (the viewpager id must be id/materialviewpager_viewpager)
+
+##1.1.0
+- orientation change fix
+- header image display fix
+- elements on header are now clickable
+- notifyHeaderChanged
+
+##1.0.8
+- added attribute viewpager_disableToolbar
+
+##1.0.7
+- fix bug on low resolutions
+
+##1.0.6
+- added attribute transparentToolbar
+- added attribute animatedHeaderImage
+- fixed bug when page is too small to scroll
+- modified HeaderDesign implementation
+
+##1.0.5
+- smoother toolbar scrolling
+- fixed bug with fitSystemWindow
+- added HeaderDesign to modify the header color & image
+- added displayToolbarWhenSwipe attribute
+
+##1.0.4
+Fixed :
+
+- Orientation changed
+- Memory Leak
+- Android >2.3 with NineOldAndroid
+- Removed ListView usage
+
+##1.0.3
+
+Fixed :  Rapid scrolling results in varying Toolbar height
+
+RecyclerViewMaterialAdapter can handle a custom placeholder cells count (usefull for GridLayoutManager)
 ```java
-
-//must be called before loadUrl()
-MaterialViewPagerHelper.preLoadInjectHeader(mWebView);
-
-//have to inject header when WebView page loaded
-mWebView.setWebViewClient(new WebViewClient() {
-    @Override
-    public void onPageFinished(WebView view, String url) {
-        MaterialViewPagerHelper.injectHeader(mWebView, true);
-    }
-    @Override
-    public boolean shouldOverrideUrlLoading(WebView view, String url) {
-        view.loadUrl(url);
-        return true;
-    }
-});
-
-mWebView.loadUrl("http://...");
-
-MaterialViewPagerHelper.registerWebView(getActivity(), mWebView, null);
+public RecyclerViewMaterialAdapter(RecyclerView.Adapter adapter, int placeholderSize)
 ```
 
-##[Deprecated] ListView
+##1.0.2
 
-*Smoother if using RecyclerView !*
-
-The ListView must be an [ObservableListView][android-observablescrollview]
-
+Added attributes
 ```java
-mAdapter = new ListViewMaterialAdapter(new ***Adapter(getActivity(),mList));
-mListView.setAdapter(mAdapter);
-MaterialViewPagerHelper.registerListView(getActivity(), mListView, null);
+app:viewpager_parallaxHeaderFactor="1.5"
+app:viewpager_headerAdditionalHeight="20dp"
 ```
 
+*parallaxHeaderFactor* Modify the speed of parallax header scroll (not the speed of KenBurns effect)
+*parallaxHeaderFactor* Set up the height of the header's layout displayed behind the first cards view
+
+Fixed issue when scroll down & scroll up multiples time while hideToolbarAndTitle="true"
+
+
+##1.0.1
+
+Added attributes
+```java
+viewpager_headerAlpha="0.6"
+```
 
 #TODO
 
-- Fix issue when scroll down & scroll up multiples time while hideToolbarAndTitle="true"
 - Header image does not load every time
 - **Remove Webviews from Android SDK !!!**
 
@@ -524,7 +591,7 @@ Tell me if you're using my library in your application, I'll share it in this RE
 
 #Credits
 
-Author: Florent Champigny
+Author: Florent Champigny [http://www.florentchampigny.com/](http://www.florentchampigny.com/)
 
 <a href="https://plus.google.com/+florentchampigny">
   <img alt="Follow me on Google+"

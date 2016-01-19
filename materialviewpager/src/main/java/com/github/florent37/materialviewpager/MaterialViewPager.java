@@ -2,8 +2,11 @@ package com.github.florent37.materialviewpager;
 
 import android.annotation.TargetApi;
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.support.v4.view.ViewPager;
 import android.support.v7.widget.Toolbar;
 import android.util.AttributeSet;
@@ -11,19 +14,23 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.RelativeLayout;
 
 import com.astuetz.PagerSlidingTabStrip;
+import com.github.florent37.materialviewpager.header.HeaderDesign;
+import com.github.florent37.materialviewpager.header.MaterialViewPagerImageHelper;
+import com.nineoldandroids.view.ViewHelper;
 
 /**
  * Created by florentchampigny on 28/04/15.
- *
+ * <p/>
  * The main class of MaterialViewPager
  * To use in an xml layout with attributes viewpager_*
- *
+ * <p/>
  * Display a preview with header, actual logo and fake cells
  */
-public class MaterialViewPager extends FrameLayout {
+public class MaterialViewPager extends FrameLayout implements ViewPager.OnPageChangeListener {
 
     /**
      * the layout containing the header
@@ -38,6 +45,12 @@ public class MaterialViewPager extends FrameLayout {
      * with viewpager_pagerTitleStrip you can set your own layout
      */
     private ViewGroup pagerTitleStripContainer;
+
+
+    /**
+     * the layout containing the viewpager, can be replaced to add your own implementation of viewpager
+     */
+    private ViewGroup viewpagerContainer;
 
     /**
      * the layout containing logo
@@ -66,6 +79,8 @@ public class MaterialViewPager extends FrameLayout {
     //Class containing the configuration of the MaterialViewPager
     protected MaterialViewPagerSettings settings = new MaterialViewPagerSettings();
 
+    protected MaterialViewPager.Listener listener;
+
     //region construct
 
     public MaterialViewPager(Context context) {
@@ -90,6 +105,14 @@ public class MaterialViewPager extends FrameLayout {
 
     //endregion
 
+
+    @Override
+    protected void onDetachedFromWindow() {
+        MaterialViewPagerHelper.unregister(getContext());
+        listener = null;
+        super.onDetachedFromWindow();
+    }
+
     @Override
     protected void onFinishInflate() {
         super.onFinishInflate();
@@ -99,17 +122,38 @@ public class MaterialViewPager extends FrameLayout {
 
         headerBackgroundContainer = (ViewGroup) findViewById(R.id.headerBackgroundContainer);
         pagerTitleStripContainer = (ViewGroup) findViewById(R.id.pagerTitleStripContainer);
+        viewpagerContainer = (ViewGroup) findViewById(R.id.viewpager_layout);
         logoContainer = (ViewGroup) findViewById(R.id.logoContainer);
 
         mToolbar = (Toolbar) findViewById(R.id.toolbar);
-        mViewPager = (ViewPager) findViewById(R.id.viewPager);
+        if (settings.disableToolbar)
+            mToolbar.setVisibility(INVISIBLE);
 
+        { //replace the viewpager ?
+            int viewPagerLayoutId = settings.viewpagerId;
+            if (viewPagerLayoutId != -1) {
+                viewpagerContainer.removeAllViews();
+                viewpagerContainer.addView(LayoutInflater.from(getContext()).inflate(viewPagerLayoutId, viewpagerContainer, false));
+            }
+        }
+
+        mViewPager = (ViewPager) findViewById(R.id.materialviewpager_viewpager);
+
+        mViewPager.addOnPageChangeListener(this);
 
         //inflate subviews defined in attributes
 
-        if (settings.headerLayoutId != -1) {
-            headerBackgroundContainer.addView(LayoutInflater.from(getContext()).inflate(settings.headerLayoutId, headerBackgroundContainer, false));
+        {
+            int headerId = settings.headerLayoutId;
+            if (headerId == -1) {
+                if (settings.animatedHeaderImage)
+                    headerId = R.layout.material_view_pager_moving_header;
+                else
+                    headerId = R.layout.material_view_pager_imageview_header;
+            }
+            headerBackgroundContainer.addView(LayoutInflater.from(getContext()).inflate(headerId, headerBackgroundContainer, false));
         }
+
 
         if (isInEditMode()) { //preview titlestrip
             //add fake tabs on edit mode
@@ -145,27 +189,27 @@ public class MaterialViewPager extends FrameLayout {
 
             //and construct the MaterialViewPagerAnimator
             //attach it to the activity to enable MaterialViewPagerHeaderView.setMaterialHeight();
-            MaterialViewPagerHelper.register((android.app.Activity) getContext(), new MaterialViewPagerAnimator(this));
-        }else{
+            MaterialViewPagerHelper.register(getContext(), new MaterialViewPagerAnimator(this));
+        } else {
 
             //if in edit mode, add fake cardsviews
             View sample = LayoutInflater.from(getContext()).inflate(R.layout.tools_list_items, pagerTitleStripContainer, false);
 
             FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) sample.getLayoutParams();
             int marginTop = Math.round(Utils.dpToPx(settings.headerHeight + 10, getContext()));
-            params.setMargins(0,marginTop,0,0);
+            params.setMargins(0, marginTop, 0, 0);
             super.setLayoutParams(params);
 
             addView(sample);
         }
     }
 
-    private void initialiseHeights(){
+    private void initialiseHeights() {
         if (headerBackground != null) {
             headerBackground.setBackgroundColor(this.settings.color);
 
             ViewGroup.LayoutParams layoutParams = headerBackground.getLayoutParams();
-            layoutParams.height = (int) Utils.dpToPx(this.settings.headerHeight + 60, getContext());
+            layoutParams.height = (int) Utils.dpToPx(this.settings.headerHeight + settings.headerAdditionalHeight, getContext());
             headerBackground.setLayoutParams(layoutParams);
         }
         if (pagerTitleStripContainer != null) {
@@ -185,6 +229,7 @@ public class MaterialViewPager extends FrameLayout {
      * Retrieve the displayed viewpager, don't forget to use
      * getPagerTitleStrip().setAdapter(materialviewpager.getViewPager())
      * after set an adapter
+     *
      * @return the displayed viewpager
      */
     public ViewPager getViewPager() {
@@ -193,6 +238,7 @@ public class MaterialViewPager extends FrameLayout {
 
     /**
      * Retrieve the displayed tabs
+     *
      * @return the displayed tabs
      */
     public PagerSlidingTabStrip getPagerTitleStrip() {
@@ -201,6 +247,14 @@ public class MaterialViewPager extends FrameLayout {
 
     /**
      * Retrieve the displayed toolbar
+     */
+    public void setToolbar(Toolbar toolbar) {
+        mToolbar = toolbar;
+    }
+
+    /**
+     * Retrieve the displayed toolbar
+     *
      * @return the displayed toolbar
      */
     public Toolbar getToolbar() {
@@ -213,14 +267,26 @@ public class MaterialViewPager extends FrameLayout {
      */
     public void setImageUrl(String imageUrl, int fadeDuration) {
         if (imageUrl != null) {
-            final MaterialViewPagerImageHeader headerBackgroundImage = (MaterialViewPagerImageHeader) findViewById(R.id.materialviewpager_imageHeader);
+            final ImageView headerBackgroundImage = (ImageView) findViewById(R.id.materialviewpager_imageHeader);
             //if using MaterialViewPagerImageHeader
             if (headerBackgroundImage != null) {
-                headerBackgroundImage.setAlpha(settings.headerAlpha);
-                headerBackgroundImage.setImageUrl(imageUrl, fadeDuration);
+                ViewHelper.setAlpha(headerBackgroundImage, settings.headerAlpha);
+                MaterialViewPagerImageHelper.setImageUrl(headerBackgroundImage, imageUrl, fadeDuration);
+                setImageHeaderDarkLayerAlpha();
             }
         }
     }
+
+    /**
+     * change the header displayed image with a fade and an OnLoadListener
+     * may remove Picasso
+     */
+    public void setImageUrl(String imageUrl, int fadeDuration, OnImageLoadListener imageLoadListener) {
+        if (imageLoadListener != null)
+            MaterialViewPagerImageHelper.setImageLoadListener(imageLoadListener);
+        setImageUrl(imageUrl, fadeDuration);
+    }
+
 
     /**
      * change the header displayed image with a fade
@@ -228,12 +294,25 @@ public class MaterialViewPager extends FrameLayout {
      */
     public void setImageDrawable(Drawable drawable, int fadeDuration) {
         if (drawable != null) {
-            final MaterialViewPagerImageHeader headerBackgroundImage = (MaterialViewPagerImageHeader) findViewById(R.id.materialviewpager_imageHeader);
+            final ImageView headerBackgroundImage = (ImageView) findViewById(R.id.materialviewpager_imageHeader);
             //if using MaterialViewPagerImageHeader
             if (headerBackgroundImage != null) {
-                headerBackgroundImage.setAlpha(settings.headerAlpha);
-                headerBackgroundImage.setImageDrawable(drawable, fadeDuration);
+                ViewHelper.setAlpha(headerBackgroundImage, settings.headerAlpha);
+                MaterialViewPagerImageHelper.setImageDrawable(headerBackgroundImage, drawable, fadeDuration);
+                setImageHeaderDarkLayerAlpha();
             }
+        }
+    }
+
+    /**
+     * Change alpha of the header image dark layer to reveal text.
+     */
+    public void setImageHeaderDarkLayerAlpha() {
+        final View headerImageDarkLayerView = findViewById(R.id.materialviewpager_headerImageDarkLayer);
+        //if using MaterialViewPagerImageHeader
+        if (headerImageDarkLayerView != null) {
+            headerImageDarkLayerView.setBackgroundColor(getResources().getColor(android.R.color.black));
+            ViewHelper.setAlpha(headerImageDarkLayerView, settings.imageHeaderDarkLayerAlpha);
         }
     }
 
@@ -241,7 +320,142 @@ public class MaterialViewPager extends FrameLayout {
      * Change the header color
      */
     public void setColor(int color, int fadeDuration) {
-        MaterialViewPagerHelper.getAnimator(getContext()).setColor(color, fadeDuration * 2);
+        if (MaterialViewPagerHelper.getAnimator(getContext()) != null)
+            MaterialViewPagerHelper.getAnimator(getContext()).setColor(color, fadeDuration * 2);
+    }
+
+    @Override
+    protected Parcelable onSaveInstanceState() {
+        Parcelable superState = super.onSaveInstanceState();
+
+        SavedState ss = new SavedState(superState);
+        //end
+        ss.settings = this.settings;
+        ss.yOffset = MaterialViewPagerHelper.getAnimator(getContext()).lastYOffset;
+
+        return ss;
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Parcelable state) {
+        SavedState ss = (SavedState) state;
+        super.onRestoreInstanceState(ss.getSuperState());
+
+        this.settings = ss.settings;
+        if (headerBackground != null)
+            headerBackground.setBackgroundColor(this.settings.color);
+
+        MaterialViewPagerAnimator animator = MaterialViewPagerHelper.getAnimator(this.getContext());
+
+        //-1*ss.yOffset restore to 0
+        animator.restoreScroll(-1 * ss.yOffset, ss.settings);
+        MaterialViewPagerHelper.register(getContext(), animator);
+    }
+
+    public ViewGroup getHeaderBackgroundContainer() {
+        return headerBackgroundContainer;
+    }
+
+    //region ViewPagerOnPageListener
+
+    int lastPosition = -1;
+
+    @Override
+    public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
+        if (positionOffset >= 0.5) {
+            onPageSelected(position + 1);
+        } else if (positionOffset <= -0.5) {
+            onPageSelected(position - 1);
+        } else {
+            onPageSelected(position);
+        }
+    }
+
+    public void notifyHeaderChanged() {
+        int position = lastPosition;
+        lastPosition = -1;
+        onPageSelected(position);
+    }
+
+    @Override
+    public void onPageSelected(int position) {
+        if (position == lastPosition || listener == null)
+            return;
+
+        HeaderDesign headerDesign = listener.getHeaderDesign(position);
+        if (headerDesign == null)
+            return;
+
+        int fadeDuration = 400;
+        int color = headerDesign.getColor();
+        if (headerDesign.getColorRes() != 0) {
+            color = getContext().getResources().getColor(headerDesign.getColorRes());
+        }
+
+        if (headerDesign.getDrawable() != null) {
+            setImageDrawable(headerDesign.getDrawable(), fadeDuration);
+        } else {
+            setImageUrl(headerDesign.getImageUrl(), fadeDuration);
+        }
+
+        setColor(color, fadeDuration);
+
+        lastPosition = position;
+    }
+
+    @Override
+    public void onPageScrollStateChanged(int state) {
+        if (settings.displayToolbarWhenSwipe) {
+            MaterialViewPagerHelper.getAnimator(getContext()).onViewPagerPageChanged();
+        }
+    }
+
+    //endregion
+
+    static class SavedState extends BaseSavedState {
+        public MaterialViewPagerSettings settings;
+        public float yOffset;
+
+        SavedState(Parcelable superState) {
+            super(superState);
+        }
+
+        private SavedState(Parcel in) {
+            super(in);
+            this.settings = in.readParcelable(MaterialViewPagerSettings.class.getClassLoader());
+            this.yOffset = in.readFloat();
+        }
+
+        @Override
+        public void writeToParcel(Parcel out, int flags) {
+            super.writeToParcel(out, flags);
+            out.writeParcelable(this.settings, flags);
+            out.writeFloat(this.yOffset);
+        }
+
+        //required field that makes Parcelables from a Parcel
+        public static final Parcelable.Creator<SavedState> CREATOR =
+                new Parcelable.Creator<SavedState>() {
+                    public SavedState createFromParcel(Parcel in) {
+                        return new SavedState(in);
+                    }
+
+                    public SavedState[] newArray(int size) {
+                        return new SavedState[size];
+                    }
+                };
+    }
+
+    public void setMaterialViewPagerListener(Listener listener) {
+        this.listener = listener;
+    }
+
+    public interface Listener {
+        HeaderDesign getHeaderDesign(int page);
+    }
+
+    public interface OnImageLoadListener {
+        void OnImageLoad(ImageView imageView, Bitmap bitmap);
     }
 
 }

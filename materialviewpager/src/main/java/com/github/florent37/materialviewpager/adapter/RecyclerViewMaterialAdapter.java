@@ -7,8 +7,6 @@ import android.view.ViewGroup;
 
 import com.github.florent37.materialviewpager.R;
 
-import java.util.List;
-
 /**
  * Created by florentchampigny on 24/04/15.
  * A RecyclerView.Adapter which inject a header to the actual RecyclerView.Adapter
@@ -19,33 +17,61 @@ public class RecyclerViewMaterialAdapter extends RecyclerView.Adapter<RecyclerVi
     static final int TYPE_PLACEHOLDER = Integer.MIN_VALUE;
 
     //the size taken by the header
-    static final int PLACEHOLDER_SIZE = 1;
+    private int mPlaceholderSize = 1;
 
     //the actual RecyclerView.Adapter
     private RecyclerView.Adapter mAdapter;
 
     /**
      * Construct the RecyclerViewMaterialAdapter, which inject a header into an actual RecyclerView.Adapter
-     * @param adapter The really RecyclerView.Adapter which display content
+     *
+     * @param adapter The real RecyclerView.Adapter which displays content
      */
     public RecyclerViewMaterialAdapter(RecyclerView.Adapter adapter) {
         this.mAdapter = adapter;
+
+        registerAdapterObserver();
+    }
+
+    /**
+     * Construct the RecyclerViewMaterialAdapter, which inject a header into an actual RecyclerView.Adapter
+     *
+     * @param adapter         The real RecyclerView.Adapter which displays content
+     * @param placeholderSize The number of placeholder items before real items, default is 1
+     */
+    public RecyclerViewMaterialAdapter(RecyclerView.Adapter adapter, int placeholderSize) {
+        this.mAdapter = adapter;
+        mPlaceholderSize = placeholderSize;
+
+        registerAdapterObserver();
+    }
+
+    protected void registerAdapterObserver() {
+        if(mAdapter != null) {
+            this.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
+
+                @Override
+                public void onChanged() {
+                    super.onChanged();
+
+                    mAdapter.notifyDataSetChanged();
+                }
+            });
+        }
     }
 
     @Override
     public int getItemViewType(int position) {
-        switch (position) {
-            case 0: //add the placeholder at the first position
-                return TYPE_PLACEHOLDER;
-            default:
-                return mAdapter.getItemViewType(position-PLACEHOLDER_SIZE); //call getItemViewType on the adapter, less PLACEHOLDER_SIZE
-        }
+        if (position < mPlaceholderSize)
+            return TYPE_PLACEHOLDER;
+        else
+            return mAdapter.getItemViewType(position - mPlaceholderSize); //call getItemViewType on the adapter, less mPlaceholderSize
     }
 
-    //dispatch getItemCount to the actual adapter, add PLACEHOLDER_SIZE
+    //dispatch getItemCount to the actual adapter, add mPlaceholderSize
     @Override
     public int getItemCount() {
-        return mAdapter.getItemCount() + PLACEHOLDER_SIZE;
+        return mAdapter.getItemCount() + mPlaceholderSize;
     }
 
     //add the header on first position, else display the true adapter's cells
@@ -61,7 +87,7 @@ public class RecyclerViewMaterialAdapter extends RecyclerView.Adapter<RecyclerVi
                 };
             }
             default:
-                return mAdapter.onCreateViewHolder(parent,viewType);
+                return mAdapter.onCreateViewHolder(parent, viewType);
         }
     }
 
@@ -72,8 +98,48 @@ public class RecyclerViewMaterialAdapter extends RecyclerView.Adapter<RecyclerVi
             case TYPE_PLACEHOLDER:
                 break;
             default:
-                mAdapter.onBindViewHolder(holder,position-PLACEHOLDER_SIZE);
+                mAdapter.onBindViewHolder(holder, position - mPlaceholderSize);
                 break;
         }
     }
+
+    public RecyclerView.Adapter getRecyclerAdapter() {
+        return mAdapter;
+    }
+
+    public void mvp_notifyDataSetChanged() {
+        mAdapter.notifyDataSetChanged();
+        notifyDataSetChanged();
+    }
+
+    public void mvp_notifyItemChanged(int position) {
+        mAdapter.notifyItemChanged(position-1);
+        notifyItemChanged(position);
+    }
+
+    public void mvp_notifyItemInserted(int position) {
+        mAdapter.notifyItemInserted(position - 1);
+        notifyItemInserted(position);
+    }
+
+    public void mvp_notifyItemRemoved(int position) {
+        mAdapter.notifyItemRemoved(position - 1);
+        notifyItemRemoved(position);
+    }
+
+    public void mpv_notifyItemRangeChanged(int startPosition, int itemCount) {
+        mAdapter.notifyItemRangeChanged(startPosition-1, itemCount-1);
+        notifyItemRangeChanged(startPosition,itemCount);
+    }
+
+    public void mpv_notifyItemRangeInserted(int startPosition, int itemCount) {
+        mAdapter.notifyItemRangeInserted(startPosition - 1, itemCount - 1);
+        notifyItemRangeInserted(startPosition, itemCount);
+    }
+
+    public void mpv_notifyItemRangeRemoved(int startPosition, int itemCount) {
+        mAdapter.notifyItemRangeRemoved(startPosition - 1, itemCount - 1);
+        notifyItemRangeRemoved(startPosition, itemCount);
+    }
+
 }

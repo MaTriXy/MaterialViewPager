@@ -5,21 +5,23 @@ import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentStatePagerAdapter;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBar;
-import android.support.v7.app.ActionBarActivity;
 import android.support.v7.app.ActionBarDrawerToggle;
+import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.view.Menu;
-import android.view.ViewGroup;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.Toast;
 
+import com.crashlytics.android.Crashlytics;
 import com.github.florent37.materialviewpager.MaterialViewPager;
-import com.github.florent37.materialviewpager.MaterialViewPagerHelper;
-import com.github.florent37.materialviewpager.MaterialViewPagerImageHeader;
-import com.github.florent37.materialviewpager.sample.fragment.ListViewFragment;
+import com.github.florent37.materialviewpager.header.HeaderDesign;
+import com.github.florent37.materialviewpager.sample.fragment.CarpaccioRecyclerViewFragment;
 import com.github.florent37.materialviewpager.sample.fragment.RecyclerViewFragment;
 import com.github.florent37.materialviewpager.sample.fragment.ScrollFragment;
-import com.github.florent37.materialviewpager.sample.fragment.WebViewFragment;
 
-public class MainActivity extends ActionBarActivity {
+import io.fabric.sdk.android.Fabric;
+
+public class MainActivity extends AppCompatActivity {
 
     private MaterialViewPager mViewPager;
 
@@ -31,6 +33,9 @@ public class MainActivity extends ActionBarActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        if (!BuildConfig.DEBUG)
+            Fabric.with(this, new Crashlytics());
 
         setTitle("");
 
@@ -57,58 +62,18 @@ public class MainActivity extends ActionBarActivity {
 
         mViewPager.getViewPager().setAdapter(new FragmentStatePagerAdapter(getSupportFragmentManager()) {
 
-            int oldPosition = -1;
-
             @Override
             public Fragment getItem(int position) {
-                switch (position) {
+                switch (position % 4) {
                     //case 0:
                     //    return RecyclerViewFragment.newInstance();
                     //case 1:
-                    //    return ScrollFragment.newInstance();
+                    //    return RecyclerViewFragment.newInstance();
                     //case 2:
-                    //    return ListViewFragment.newInstance();
-                    //case 3:
                     //    return WebViewFragment.newInstance();
                     default:
-                        return RecyclerViewFragment.newInstance();
+                            return RecyclerViewFragment.newInstance();
                 }
-            }
-
-            @Override
-            public void setPrimaryItem(ViewGroup container, int position, Object object) {
-                super.setPrimaryItem(container, position, object);
-
-                //only if position changed
-                if(position == oldPosition)
-                    return;
-                oldPosition = position;
-
-                int color = 0;
-                String imageUrl = "";
-                switch (position){
-                    case 0:
-                        imageUrl = "http://cdn1.tnwcdn.com/wp-content/blogs.dir/1/files/2014/06/wallpaper_51.jpg";
-                        color = getResources().getColor(R.color.blue);
-                        break;
-                    case 1:
-                        imageUrl = "https://fs01.androidpit.info/a/63/0e/android-l-wallpapers-630ea6-h900.jpg";
-                        color = getResources().getColor(R.color.green);
-                        break;
-                    case 2:
-                        imageUrl = "http://www.droid-life.com/wp-content/uploads/2014/10/lollipop-wallpapers10.jpg";
-                        color = getResources().getColor(R.color.cyan);
-                        break;
-                    case 3:
-                        imageUrl = "http://www.tothemobile.com/wp-content/uploads/2014/07/original.jpg";
-                        color = getResources().getColor(R.color.red);
-                        break;
-                }
-
-                final int fadeDuration = 400;
-                mViewPager.setImageUrl(imageUrl,fadeDuration);
-                mViewPager.setColor(color,fadeDuration);
-
             }
 
             @Override
@@ -118,7 +83,7 @@ public class MainActivity extends ActionBarActivity {
 
             @Override
             public CharSequence getPageTitle(int position) {
-                switch (position){
+                switch (position % 4) {
                     case 0:
                         return "Selection";
                     case 1:
@@ -131,8 +96,47 @@ public class MainActivity extends ActionBarActivity {
                 return "";
             }
         });
+
+        mViewPager.setMaterialViewPagerListener(new MaterialViewPager.Listener() {
+            @Override
+            public HeaderDesign getHeaderDesign(int page) {
+                switch (page) {
+                    case 0:
+                        return HeaderDesign.fromColorResAndUrl(
+                                R.color.green,
+                                "https://fs01.androidpit.info/a/63/0e/android-l-wallpapers-630ea6-h900.jpg");
+                    case 1:
+                        return HeaderDesign.fromColorResAndUrl(
+                                R.color.blue,
+                                "http://cdn1.tnwcdn.com/wp-content/blogs.dir/1/files/2014/06/wallpaper_51.jpg");
+                    case 2:
+                        return HeaderDesign.fromColorResAndUrl(
+                                R.color.cyan,
+                                "http://www.droid-life.com/wp-content/uploads/2014/10/lollipop-wallpapers10.jpg");
+                    case 3:
+                        return HeaderDesign.fromColorResAndUrl(
+                                R.color.red,
+                                "http://www.tothemobile.com/wp-content/uploads/2014/07/original.jpg");
+                }
+
+                //execute others actions if needed (ex : modify your header logo)
+
+                return null;
+            }
+        });
+
         mViewPager.getViewPager().setOffscreenPageLimit(mViewPager.getViewPager().getAdapter().getCount());
         mViewPager.getPagerTitleStrip().setViewPager(mViewPager.getViewPager());
+
+        View logo = findViewById(R.id.logo_white);
+        if (logo != null)
+            logo.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    mViewPager.notifyHeaderChanged();
+                    Toast.makeText(getApplicationContext(), "Yes, the title is clickable", Toast.LENGTH_SHORT).show();
+                }
+            });
     }
 
     @Override
@@ -141,4 +145,9 @@ public class MainActivity extends ActionBarActivity {
         mDrawerToggle.syncState();
     }
 
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        return mDrawerToggle.onOptionsItemSelected(item) ||
+                super.onOptionsItemSelected(item);
+    }
 }
